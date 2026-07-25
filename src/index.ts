@@ -3,7 +3,7 @@ import { log } from "console";
 type MatrixRow = (number | string)[];
 type Matrix = MatrixRow[];
 
-// # Gini impurity - koliko je svaki node "miksovan" (od 0 do 1)
+// # Gini impurity - koliko je svaki node "miksovan"
 // # impurity od 0 znaci da node nije miksovan tj. ima samo jednu klasu
 // # kako se tacno mery gini impurity? Pronaci formulu
 // # informaiton gain -> koliko pitanje/uslov/split smanjuje gini index
@@ -27,11 +27,57 @@ const trainingData = [
  */
 function trainTree(trainingData: any[]) {
   // 1. Pronalazimo najbolje pitanje
-
-  const split = findSplit(trainingData);
+  const bestSplit = findBestSplit(trainingData);
 }
 
-function findSplit(trainingData: any[]) {}
+function findBestSplit(trainingData: any[]) {}
+
+interface SplitResult {
+  match: Matrix;
+  noMatch: Matrix;
+}
+
+/**
+ * Partitions a dataset into two subsets based on an attribute index and threshold value.
+ *
+ * - **Numeric values:** Uses a `>=` threshold check (`row[columnIndex] >= value`).
+ * - **String values:** Uses exact equality (`row[columnIndex] === value`).
+ *
+ * @param dataSet - The input matrix (array of rows) to be split.
+ * @param columnIndex - The index of the column/attribute to test against.
+ * @param value - The value or threshold used as the splitting criteria.
+ *
+ * @returns An object containing two matrices: `match` (rows satisfying the condition)
+ * and `noMatch` (rows that do not).
+ */
+function findSplit(
+  dataSet: Matrix,
+  columnIndex: number,
+  value: string | number,
+): SplitResult {
+  const match = [];
+  const noMatch = [];
+
+  for (const row of dataSet) {
+    const columnVal = row[columnIndex];
+
+    if (typeof value === "number") {
+      if (typeof columnVal === "number" && columnVal >= value) {
+        match.push(row);
+      } else {
+        noMatch.push(row);
+      }
+    } else {
+      if (columnVal === value) {
+        match.push(row);
+      } else {
+        noMatch.push(row);
+      }
+    }
+  }
+
+  return { match, noMatch };
+}
 
 /**
  * Calculates the Gini impurity for a given dataset (matrix).
@@ -88,4 +134,7 @@ const splitByDiameter: MatrixRow[] = [
 ];
 
 const gini = calculateGiniImpurity(splitByDiameter);
-console.log(gini);
+// console.log(gini);
+
+const splitTest = findSplit(trainingData, 0, "Green");
+console.log(splitTest);
