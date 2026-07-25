@@ -3,6 +3,13 @@ import { log } from "console";
 type MatrixRow = (number | string)[];
 type Matrix = MatrixRow[];
 
+interface SplitResult {
+  match: Matrix;
+  noMatch: Matrix;
+}
+
+const CLASSES = ["Apple", "Grape", "Lemon"];
+
 // # Gini impurity - koliko je svaki node "miksovan"
 // # impurity od 0 znaci da node nije miksovan tj. ima samo jednu klasu
 // # kako se tacno mery gini impurity? Pronaci formulu
@@ -11,6 +18,18 @@ type Matrix = MatrixRow[];
 // # rekurzivno delimo podatke dok nema vise pitanja
 // # pokusavamo svaki split u trenutnom nodu i biramo najbolji (onaj koji ima najveci gain)
 // # information gain = pocetni impurity - nastali impurity
+
+// I=0 J=0
+// I=1 J=0
+// I=2 J=0
+// I=3 J=0
+// I=4 J=0
+
+// I=0 J=1
+// I=1 J=1
+// I=2 J=1
+// I=3 J=1
+// I=4 J=1
 
 // 1. Define training data set
 const trainingData = [
@@ -21,6 +40,8 @@ const trainingData = [
   ["Yellow", 3, "Lemon"],
 ];
 
+// [Green, Yellow, Red, 3, 1]
+
 /*
     It should return reference to root node
     1. 
@@ -30,11 +51,63 @@ function trainTree(trainingData: any[]) {
   const bestSplit = findBestSplit(trainingData);
 }
 
-function findBestSplit(trainingData: any[]) {}
+/**
+ *
+ * @param trainingData
+ */
+function findBestSplit(dataset: Matrix) {
+  if (dataset.length < 1) {
+    return;
+  }
 
-interface SplitResult {
-  match: Matrix;
-  noMatch: Matrix;
+  // Get unique values for each feature
+  // ? Loop through values create questions
+  // use findSplit and calculateGiniImpurity
+
+  let minGini = Number.MAX_VALUE;
+  let bestSplit = null;
+  let question = null;
+
+  let classIndex = 0;
+
+  if (dataset[0]) {
+    classIndex = dataset[0].length - 1;
+  }
+
+  let rowIndex;
+  let colIndex;
+
+  const featureSet = new Set();
+
+  for (colIndex = 0; colIndex < classIndex; colIndex++) {
+    for (rowIndex = 0; rowIndex < trainingData.length; rowIndex++) {
+      const featureValue = trainingData[rowIndex][colIndex];
+
+      if (!featureSet.has(featureValue)) {
+        const split = findSplit(dataset, colIndex, featureValue);
+
+        if (split.match.length === 0 || split.noMatch.length === 0) {
+          continue;
+        }
+
+        const weightedGini =
+          (split.match.length / dataset.length) *
+            calculateGiniImpurity(split.match) +
+          (split.noMatch.length / dataset.length) *
+            calculateGiniImpurity(split.noMatch);
+
+        if (weightedGini < minGini) {
+          minGini = weightedGini;
+          bestSplit = split;
+          question = featureValue;
+        }
+
+        featureSet.add(featureValue);
+      }
+    }
+  }
+
+  console.log(minGini, bestSplit, question);
 }
 
 /**
@@ -127,14 +200,4 @@ function predict(): string {
   return "";
 }
 
-const splitByDiameter: MatrixRow[] = [
-  ["Green", 3, "Apple"],
-  ["Yellow", 3, "Apple"],
-  ["Yellow", 3, "Lemon"],
-];
-
-const gini = calculateGiniImpurity(splitByDiameter);
-// console.log(gini);
-
-const splitTest = findSplit(trainingData, 0, "Green");
-console.log(splitTest);
+findBestSplit(trainingData);
