@@ -1,0 +1,21 @@
+{
+  "name": "atm",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "scripts": {
+    "build": "tsc",
+    "predev": "npm run typecheck",
+    "dev": "node --watch --experimental-strip-types src/index.ts",
+    "prestart": "npm run typecheck",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "typescript": "7.0.2"
+  }
+}
