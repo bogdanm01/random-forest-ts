@@ -1,3 +1,5 @@
+import { log } from "console";
+
 type MatrixRow = (number | string)[];
 type Matrix = MatrixRow[];
 
@@ -31,61 +33,50 @@ function trainTree(trainingData: any[]) {
 
 function findSplit(trainingData: any[]) {}
 
-// 1 - number of classes
-// input label i broj podataka sa tom klasom [['Apple', 2], ['Lemon', 1]]
-
 /**
-    apple: 2
-    lemon: 1
-
-    pApple = 2/3 = 0.66
-    pLemon = 1/3 = 0.33
-
-    gini = 1 - pApple^2 - pLemon^2
+ * Calculates the Gini impurity for a given dataset (matrix).
+ *
+ * **ELI5:** Imagine picking an item from a bag with your eyes closed. Gini impurity
+ * measures how likely you are to guess its label wrong.
+ * - `0` means the bag has only one label (100% pure, no confusion).
+ * - Higher values mean the labels are mixed up (high confusion).
+ *
+ * The target class label is assumed to be the **last element** of each row.
+ *
+ * @param data - The matrix of samples, where each row is an array of attributes
+ * ending with the target class label (e.g., `["Green", 3, "Apple"]`).
+ *
+ * @returns The Gini impurity score between `0.0` (pure) and `1 - (1 / C)`
+ * (where `C` is the number of unique classes). Returns `0` if the matrix is empty.
  */
-
 function calculateGiniImpurity(data: Matrix): number {
+  const total = data.length;
+
+  if (total === 0) {
+    return 0;
+  }
+
   const map = new Map<string, number>();
 
   for (let row of data) {
     const label = String(row[row.length - 1]);
-
-    if (!map.has(label)) {
-      map.set(label, 1);
-    } else {
-      const currentVal: number = Number(map.get(label));
-      if (!Number.isNaN(currentVal)) {
-        map.set(label, currentVal + 1);
-      }
-    }
+    const currentCount = map.get(label) ?? 0;
+    map.set(label, currentCount + 1);
   }
 
-  // now for each key calculate probability
-  const valueCounts = Array.from(map.values()).reduce((acc, current) => {
-    return acc + current;
-  }, 0);
-
-  const probsSquared = [];
+  let giniImpurity = 1;
 
   for (let count of map.values()) {
-    probsSquared.push(Math.pow(count / valueCounts, 2));
+    giniImpurity = giniImpurity - Math.pow(count / total, 2);
   }
 
-  const res = probsSquared.reduce((acc, curr) => {
-    return acc - curr;
-  }, 1);
-
-  return res;
+  return giniImpurity;
 }
 
 function calculateInformationGain(): number {
   return 0;
 }
 
-/**
- *
- * @returns predicted class
- */
 function predict(): string {
   return "";
 }
@@ -96,4 +87,5 @@ const splitByDiameter: MatrixRow[] = [
   ["Yellow", 3, "Lemon"],
 ];
 
-const tree = calculateGiniImpurity(splitByDiameter);
+const gini = calculateGiniImpurity(splitByDiameter);
+console.log(gini);
