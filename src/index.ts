@@ -16,10 +16,23 @@ interface Node {
 }
 
 // TODO: Don't hardcode, infer fom training data
-const CLASSES = ["Apple", "Grape", "Lemon"];
+const CLASSES = ["Apple", "Grape", "Lemon", "Orange"];
 
+/**
+ * Recursively builds a decision tree from a dataset using Gini impurity.
+ *
+ * Evaluates stopping conditions at each node (pure subset or no valid splits remaining)
+ * to construct leaf nodes. For non-terminal nodes, finds the optimal feature split,
+ * creates a decision node, and recursively generates the left (`match`) and
+ * right (`noMatch`) subtrees.
+ *
+ * @param dataset - The matrix of training samples where each row contains feature
+ * values ending with the target class label.
+ *
+ * @returns The root `Node` of the trained decision tree, or a single leaf node if training
+ * stops immediately. Returns `null` if the dataset cannot be processed.
+ */
 function trainTree(dataset: Matrix): Node | null {
-  // Base Case 1: Gini impurity is 0 - return a pure leaf
   if (calculateGiniImpurity(dataset) === 0) {
     return {
       type: "leaf",
@@ -29,7 +42,6 @@ function trainTree(dataset: Matrix): Node | null {
 
   const split = findBestSplit(dataset);
 
-  // Base Case 2: Data can't be split further
   if (
     split?.split?.match.length === 0 ||
     split?.split?.noMatch.length === 0 ||
@@ -54,7 +66,18 @@ function trainTree(dataset: Matrix): Node | null {
   };
 }
 
-/*
+/**
+ * Determines the majority class label within a dataset by frequency count.
+ *
+ * Iterates through the target labels (assumed to be the final element of each row)
+ * and tracks frequency counts to find the most common class. Used by leaf nodes
+ * when training stops or when a dataset cannot be split further.
+ *
+ * @param dataset - The matrix of samples to analyze, where the target class label
+ * resides in the last column of each row.
+ *
+ * @returns The class label (`string` or `number`) with the highest occurrence count,
+ * or an empty string `""` if the dataset is empty.
  */
 function getMajorityClass(dataset: Matrix): string | number {
   if (dataset.length === 0) return "";
@@ -80,8 +103,22 @@ function getMajorityClass(dataset: Matrix): string | number {
 }
 
 /**
+ * Evaluates all possible feature splits across a dataset to find the partition
+ * that yields the lowest weighted Gini impurity.
  *
- * @param trainingData
+ * Iterates through every feature column (excluding the target class in the last column)
+ * and tests each unique feature value as a potential split candidate using `findSplit`.
+ * Computes the weighted Gini impurity for each partition and returns the split criteria
+ * that minimizes child node impurity (maximizing Gini reduction).
+ *
+ * @param dataset - The matrix of samples to evaluate, where each row consists of feature
+ * values followed by the target class label in the final column.
+ *
+ * @returns An object containing the details of the optimal split:
+ * - `split`: The resulting `SplitResult` (`match` and `noMatch` subsets), or `null` if no valid split reduces impurity.
+ * - `attributeValue`: The threshold or feature value used for the best split criteria, or `null` if no split is found.
+ * - `minGini`: The lowest weighted Gini impurity score achieved by the best split. Defaults to `Number.MAX_VALUE` if no valid split exists.
+ * - `columnIndex`: The index of the column/attribute corresponding to the best split criteria.
  */
 function findBestSplit(dataset: Matrix) {
   let minGini = Number.MAX_VALUE;
@@ -113,11 +150,7 @@ function findBestSplit(dataset: Matrix) {
           continue;
         }
 
-        const weightedGini =
-          (split.match.length / dataset.length) *
-            calculateGiniImpurity(split.match) +
-          (split.noMatch.length / dataset.length) *
-            calculateGiniImpurity(split.noMatch);
+        const weightedGini = calculateWeightedGini(split, dataset);
 
         if (weightedGini < minGini) {
           minGini = weightedGini;
@@ -135,6 +168,26 @@ function findBestSplit(dataset: Matrix) {
     minGini: minGini,
     columnIndex: bestColumnIndex,
   };
+}
+
+/**
+ * Calculates the weighted Gini impurity for a candidate data split.
+ *
+ * Computes the Gini impurity for both the `match` and `noMatch` subsets,
+ * weighting each subset by its proportion relative to the total dataset size.
+ *
+ * @param split - The candidate split containing the partitioned `match` and `noMatch` subsets.
+ * @param dataset - The parent matrix before the split, used to determine total sample size.
+ *
+ * @returns The total weighted Gini impurity score for the split. A lower value indicates
+ * a purer partition.
+ */
+function calculateWeightedGini(split: SplitResult, dataset: Matrix) {
+  return (
+    (split.match.length / dataset.length) * calculateGiniImpurity(split.match) +
+    (split.noMatch.length / dataset.length) *
+      calculateGiniImpurity(split.noMatch)
+  );
 }
 
 /**
@@ -219,13 +272,20 @@ function calculateGiniImpurity(data: Matrix): number {
   return giniImpurity;
 }
 
+// [Color, Diameter (cm), Weight (g), Texture, Label]
 const trainingData: Matrix = [
-  ["Green", 3, "Apple"],
-  ["Yellow", 3, "Apple"],
-  ["Red", 1, "Grape"],
-  ["Red", 1, "Grape"],
-  ["Yellow", 3, "Lemon"],
+  ["Green", 3, 150, "Smooth", "Apple"],
+  ["Green", 3.5, 165, "Smooth", "Apple"],
+  ["Yellow", 3.2, 140, "Smooth", "Apple"],
+  ["Red", 1.5, 12, "Smooth", "Grape"],
+  ["Red", 1.8, 15, "Smooth", "Grape"],
+  ["Green", 1.2, 10, "Smooth", "Grape"],
+  ["Yellow", 4.0, 120, "Bumpy", "Lemon"],
+  ["Yellow", 3.8, 110, "Bumpy", "Lemon"],
+  ["Green", 3.6, 105, "Bumpy", "Lemon"],
+  ["Orange", 5.0, 200, "Rough", "Orange"],
+  ["Orange", 4.5, 180, "Rough", "Orange"],
 ];
 
 const res = trainTree(trainingData);
-console.log(res);
+console.log(JSON.stringify(res, null, 2));
