@@ -1,5 +1,3 @@
-import { log } from "console";
-
 type MatrixRow = (number | string)[];
 type Matrix = MatrixRow[];
 
@@ -8,67 +6,70 @@ interface SplitResult {
   noMatch: Matrix;
 }
 
+interface Node {
+  type: "leaf" | "decision";
+  left?: Node | null;
+  right?: Node | null;
+  prediction?: string;
+  attributeIndex?: number;
+  attributeValue?: string | number;
+}
+
+// TODO: Don't hardcode, infer fom training data
 const CLASSES = ["Apple", "Grape", "Lemon"];
 
-// # Gini impurity - koliko je svaki node "miksovan"
-// # impurity od 0 znaci da node nije miksovan tj. ima samo jednu klasu
-// # kako se tacno mery gini impurity? Pronaci formulu
-// # informaiton gain -> koliko pitanje/uslov/split smanjuje gini index
-// # koristimo gini index i information gain da bismo selektovali anjbolji split u svakom trenutku
-// # rekurzivno delimo podatke dok nema vise pitanja
-// # pokusavamo svaki split u trenutnom nodu i biramo najbolji (onaj koji ima najveci gain)
-// # information gain = pocetni impurity - nastali impurity
+function trainTree(dataset: Matrix): Node | null {
+  // Base Case 1: Gini impurity is 0 - return a pure leaf
+  if (calculateGiniImpurity(dataset) === 0) {
+    return {
+      type: "leaf",
+      prediction: "b1p",
+    };
+  }
 
-// I=0 J=0
-// I=1 J=0
-// I=2 J=0
-// I=3 J=0
-// I=4 J=0
+  const split = findBestSplit(dataset);
 
-// I=0 J=1
-// I=1 J=1
-// I=2 J=1
-// I=3 J=1
-// I=4 J=1
+  // Base Case 2: Data can't be split further
+  if (
+    split?.split?.match.length === 0 ||
+    split?.split?.noMatch.length === 0 ||
+    !split ||
+    !split.split
+  ) {
+    return {
+      type: "leaf",
+      prediction: "b2p",
+    };
+  }
 
-// 1. Define training data set
-const trainingData = [
-  ["Green", 3, "Apple"],
-  ["Yellow", 3, "Apple"],
-  ["Red", 1, "Grape"],
-  ["Red", 1, "Grape"],
-  ["Yellow", 3, "Lemon"],
-];
+  const leftChild = trainTree(split?.split?.match!);
+  const rightChild = trainTree(split?.split?.noMatch!);
 
-// [Green, Yellow, Red, 3, 1]
-
-/*
-    It should return reference to root node
-    1. 
- */
-function trainTree(trainingData: any[]) {
-  // 1. Pronalazimo najbolje pitanje
-  const bestSplit = findBestSplit(trainingData);
+  return {
+    type: "decision",
+    left: leftChild,
+    right: rightChild,
+    attributeIndex: split?.columnIndex,
+    attributeValue: split?.attributeValue!,
+  };
 }
 
 /**
  *
  * @param trainingData
  */
-function findBestSplit(dataset: Matrix) {
-  if (dataset.length < 1) {
-    return;
-  }
-
-  // Get unique values for each feature
-  // ? Loop through values create questions
-  // use findSplit and calculateGiniImpurity
-
+function findBestSplit(dataset: Matrix): {
+  split: SplitResult | null;
+  minGini: number;
+  attributeValue: string | number | null;
+  columnIndex: number;
+} {
   let minGini = Number.MAX_VALUE;
   let bestSplit = null;
-  let question = null;
+  let attributeValue = null;
 
   let classIndex = 0;
+  let columnIndex = 0;
 
   if (dataset[0]) {
     classIndex = dataset[0].length - 1;
@@ -99,7 +100,8 @@ function findBestSplit(dataset: Matrix) {
         if (weightedGini < minGini) {
           minGini = weightedGini;
           bestSplit = split;
-          question = featureValue;
+          attributeValue = featureValue;
+          columnIndex = colIndex;
         }
 
         featureSet.add(featureValue);
@@ -107,7 +109,12 @@ function findBestSplit(dataset: Matrix) {
     }
   }
 
-  console.log(minGini, bestSplit, question);
+  return {
+    split: bestSplit,
+    attributeValue: attributeValue!,
+    minGini: minGini,
+    columnIndex: columnIndex,
+  };
 }
 
 /**
@@ -192,12 +199,13 @@ function calculateGiniImpurity(data: Matrix): number {
   return giniImpurity;
 }
 
-function calculateInformationGain(): number {
-  return 0;
-}
+const trainingData: Matrix = [
+  ["Green", 3, "Apple"],
+  ["Yellow", 3, "Apple"],
+  ["Red", 1, "Grape"],
+  ["Red", 1, "Grape"],
+  ["Yellow", 3, "Lemon"],
+];
 
-function predict(): string {
-  return "";
-}
-
-findBestSplit(trainingData);
+const res = trainTree(trainingData);
+console.log(res);
