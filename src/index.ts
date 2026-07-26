@@ -270,20 +270,40 @@ function calculateGiniImpurity(data: Matrix): number {
   return giniImpurity;
 }
 
-// [Color, Diameter (cm), Weight (g), Texture, Label]
-const trainingData: Matrix = [
-  ["Green", 3, 150, "Smooth", "Apple"],
-  ["Green", 3.5, 165, "Smooth", "Apple"],
-  ["Yellow", 3.2, 140, "Smooth", "Apple"],
-  ["Red", 1.5, 12, "Smooth", "Grape"],
-  ["Red", 1.8, 15, "Smooth", "Grape"],
-  ["Green", 1.2, 10, "Smooth", "Grape"],
-  ["Yellow", 4.0, 120, "Bumpy", "Lemon"],
-  ["Yellow", 3.8, 110, "Bumpy", "Lemon"],
-  ["Green", 3.6, 105, "Bumpy", "Lemon"],
-  ["Orange", 5.0, 200, "Rough", "Orange"],
-  ["Orange", 4.5, 180, "Rough", "Orange"],
-];
+/**
+ * Traverses a trained decision tree to predict the target class label for an input sample.
+ *
+ * Evaluates conditions at each decision node using either continuous threshold comparisons
+ * (`>=` for numeric attributes) or categorical equality checks (`===` for non-numeric attributes),
+ * following matching outcomes down the `left` subtree and non-matching outcomes down the `right`
+ * subtree until reaching a leaf node.
+ *
+ * @param tree - The root `Node` of the trained decision tree.
+ * @param input - The array representing a single sample's feature values (`MatrixRow`).
+ *
+ * @returns The predicted class label (`string` or `number`) if a leaf node is reached,
+ * or `null` if traversal fails due to an invalid or incomplete tree structure.
+ */
+function predict(tree: Node, input: MatrixRow): string | number | null {
+  let currentNode: Node | null = tree;
 
-const res = trainTree(trainingData);
-console.log(JSON.stringify(res, null, 2));
+  while (currentNode && currentNode.type !== "leaf") {
+    const attrIdx: number = currentNode.attributeIndex!;
+    const inputVal: number | string | undefined = input[attrIdx];
+    const targetVal: string | number | undefined = currentNode.attributeValue!;
+
+    let isMatch = false;
+
+    if (typeof targetVal === "number") {
+      isMatch = typeof inputVal === "number" && inputVal >= targetVal;
+    } else {
+      isMatch = inputVal === targetVal;
+    }
+
+    currentNode = isMatch
+      ? (currentNode.left ?? null)
+      : (currentNode.right ?? null);
+  }
+
+  return currentNode?.prediction ?? null;
+}
