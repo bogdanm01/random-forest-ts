@@ -1,19 +1,20 @@
-# ATM
+# Decision Tree Classifier
 
-Node.js project using TypeScript 7.
+A lightweight, zero-dependency Decision Tree classifier built completely from scratch in TypeScript using Gini impurity.
 
-## Getting started
+## Features
 
-```sh
-nvm use
+- **Gini Impurity Splitting:** Finds optimal partitions by minimizing child node impurity.
+- **Mixed Feature Types:** Automatically handles continuous numerical features (`>=` threshold) and categorical string features (`===` equality).
+- **Pure Recursive Training:** Builds intuitive decision boundaries with base-case stopping criteria (pure leaves or un-splittable branches).
+- **Fully Typed:** Written with strict TypeScript interfaces for simple integration and refactoring.
+
+## Installation
+
+Clone the repository and install dependencies:
+
+```bash
+git clone [https://github.com/your-username/decision-tree-ts.git](https://github.com/your-username/decision-tree-ts.git)
+cd decision-tree-ts
 npm install
-npm run dev
 ```
-
-## Scripts
-
-- `npm run dev` type-checks the project, then runs the TypeScript entry point in watch mode.
-- `npm start` type-checks the project before running the compiled application.
-- `npm run typecheck` checks types without emitting files.
-- `npm run build` compiles the project into `dist/`.
-- `npm start` runs the compiled application.
