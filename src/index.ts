@@ -15,9 +15,6 @@ interface Node {
   attributeValue?: string | number;
 }
 
-// TODO: Don't hardcode, infer fom training data
-const CLASSES = ["Apple", "Grape", "Lemon", "Orange"];
-
 /**
  * Recursively builds a decision tree from a dataset using Gini impurity.
  *
@@ -142,6 +139,7 @@ function findBestSplit(dataset: Matrix) {
 
     for (let rowIndex = 0; rowIndex < dataset.length; rowIndex++) {
       const featureValue = dataset[rowIndex]?.[colIndex];
+
       if (featureValue !== undefined && !featureSet.has(featureValue)) {
         featureSet.add(featureValue);
         const split = findSplit(dataset, colIndex, featureValue);
