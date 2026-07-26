@@ -10,7 +10,7 @@ interface Node {
   type: "leaf" | "decision";
   left?: Node | null;
   right?: Node | null;
-  prediction?: string;
+  prediction?: string | number;
   attributeIndex?: number;
   attributeValue?: string | number;
 }
@@ -23,7 +23,7 @@ function trainTree(dataset: Matrix): Node | null {
   if (calculateGiniImpurity(dataset) === 0) {
     return {
       type: "leaf",
-      prediction: "b1p",
+      prediction: getMajorityClass(dataset),
     };
   }
 
@@ -38,7 +38,7 @@ function trainTree(dataset: Matrix): Node | null {
   ) {
     return {
       type: "leaf",
-      prediction: "b2p",
+      prediction: getMajorityClass(dataset),
     };
   }
 
@@ -47,44 +47,66 @@ function trainTree(dataset: Matrix): Node | null {
 
   return {
     type: "decision",
-    left: leftChild,
-    right: rightChild,
     attributeIndex: split?.columnIndex,
     attributeValue: split?.attributeValue!,
+    left: leftChild,
+    right: rightChild,
   };
+}
+
+/*
+ */
+function getMajorityClass(dataset: Matrix): string | number {
+  if (dataset.length === 0) return "";
+
+  const map = new Map<string | number, number>();
+  let majorityClass: string | number = dataset[0]![dataset[0]!.length - 1]!;
+  let topCount = 0;
+
+  for (const row of dataset) {
+    const label = row[row.length - 1];
+    if (label === undefined) continue;
+
+    const count = (map.get(label) ?? 0) + 1;
+    map.set(label, count);
+
+    if (count > topCount) {
+      topCount = count;
+      majorityClass = label;
+    }
+  }
+
+  return majorityClass;
 }
 
 /**
  *
  * @param trainingData
  */
-function findBestSplit(dataset: Matrix): {
-  split: SplitResult | null;
-  minGini: number;
-  attributeValue: string | number | null;
-  columnIndex: number;
-} {
+function findBestSplit(dataset: Matrix) {
   let minGini = Number.MAX_VALUE;
-  let bestSplit = null;
-  let attributeValue = null;
+  let bestSplit: SplitResult | null = null;
+  let bestAttributeValue: string | number | null = null;
+  let bestColumnIndex = 0;
 
-  let classIndex = 0;
-  let columnIndex = 0;
-
-  if (dataset[0]) {
-    classIndex = dataset[0].length - 1;
+  if (dataset.length === 0 || !dataset[0]) {
+    return {
+      split: null,
+      attributeValue: null,
+      minGini: Number.MAX_VALUE,
+      columnIndex: 0,
+    };
   }
 
-  let rowIndex;
-  let colIndex;
+  const classIndex = dataset[0].length - 1;
 
-  const featureSet = new Set();
+  for (let colIndex = 0; colIndex < classIndex; colIndex++) {
+    const featureSet = new Set<string | number>();
 
-  for (colIndex = 0; colIndex < classIndex; colIndex++) {
-    for (rowIndex = 0; rowIndex < trainingData.length; rowIndex++) {
-      const featureValue = trainingData[rowIndex][colIndex];
-
-      if (!featureSet.has(featureValue)) {
+    for (let rowIndex = 0; rowIndex < dataset.length; rowIndex++) {
+      const featureValue = dataset[rowIndex]?.[colIndex];
+      if (featureValue !== undefined && !featureSet.has(featureValue)) {
+        featureSet.add(featureValue);
         const split = findSplit(dataset, colIndex, featureValue);
 
         if (split.match.length === 0 || split.noMatch.length === 0) {
@@ -100,20 +122,18 @@ function findBestSplit(dataset: Matrix): {
         if (weightedGini < minGini) {
           minGini = weightedGini;
           bestSplit = split;
-          attributeValue = featureValue;
-          columnIndex = colIndex;
+          bestAttributeValue = featureValue;
+          bestColumnIndex = colIndex;
         }
-
-        featureSet.add(featureValue);
       }
     }
   }
 
   return {
     split: bestSplit,
-    attributeValue: attributeValue!,
+    attributeValue: bestAttributeValue,
     minGini: minGini,
-    columnIndex: columnIndex,
+    columnIndex: bestColumnIndex,
   };
 }
 
