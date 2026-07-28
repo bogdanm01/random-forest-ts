@@ -338,3 +338,19 @@ function predict(tree: Node, input: MatrixRow): string | number | null {
 
   return currentNode?.prediction ?? null;
 }
+
+/**
+ *
+ * @param dataset
+ */
+export function bootstrapSample(dataset: Matrix): Matrix {
+  const samples: Matrix = [];
+  const n = dataset.length;
+
+  for (let i = 0; i < n; i++) {
+    const randomIndex = Math.floor(Math.random() * n);
+    samples.push(dataset[randomIndex]!);
+  }
+
+  return samples;
+}
