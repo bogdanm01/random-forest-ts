@@ -15,6 +15,15 @@ interface Node {
   attributeValue?: string | number;
 }
 
+interface Forest {
+  trees: Node[];
+}
+
+interface TreeOptions {
+  maxDepth?: number;
+  minSamplesSplit?: number;
+}
+
 /**
  * Recursively builds a decision tree from a dataset using Gini impurity.
  *
@@ -29,7 +38,11 @@ interface Node {
  * @returns The root `Node` of the trained decision tree, or a single leaf node if training
  * stops immediately. Returns `null` if the dataset cannot be processed.
  */
-function trainTree(dataset: Matrix): Node | null {
+function trainTree(
+  dataset: Matrix,
+  treeOptions: TreeOptions,
+  currentDepth: number = 0,
+): Node | null {
   if (calculateGiniImpurity(dataset) === 0) {
     return {
       type: "leaf",
@@ -37,13 +50,10 @@ function trainTree(dataset: Matrix): Node | null {
     };
   }
 
-  const split = findBestSplit(dataset);
-
   if (
-    split?.split?.match.length === 0 ||
-    split?.split?.noMatch.length === 0 ||
-    !split ||
-    !split.split
+    (treeOptions.minSamplesSplit &&
+      dataset.length < treeOptions.minSamplesSplit) ||
+    (treeOptions.maxDepth !== undefined && currentDepth >= treeOptions.maxDepth)
   ) {
     return {
       type: "leaf",
@@ -51,13 +61,34 @@ function trainTree(dataset: Matrix): Node | null {
     };
   }
 
-  const leftChild = trainTree(split?.split?.match!);
-  const rightChild = trainTree(split?.split?.noMatch!);
+  const result = findBestSplit(dataset);
+
+  if (
+    !result.split ||
+    result?.split?.match.length === 0 ||
+    result?.split?.noMatch.length === 0
+  ) {
+    return {
+      type: "leaf",
+      prediction: getMajorityClass(dataset),
+    };
+  }
+
+  const leftChild = trainTree(
+    result?.split?.match!,
+    treeOptions,
+    currentDepth + 1,
+  );
+  const rightChild = trainTree(
+    result?.split?.noMatch!,
+    treeOptions,
+    currentDepth + 1,
+  );
 
   return {
     type: "decision",
-    attributeIndex: split?.columnIndex,
-    attributeValue: split?.attributeValue!,
+    attributeIndex: result?.columnIndex,
+    attributeValue: result?.attributeValue!,
     left: leftChild,
     right: rightChild,
   };
