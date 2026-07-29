@@ -1,5 +1,3 @@
-import type { MatrixRow } from "./randomForest.types.ts";
-
 export interface SourceRow {
   PassengerId: string;
   Survived: number;
@@ -25,5 +23,3 @@ export interface TransformedRow {
   embarked: string;
   survived: number;
 }
-
-export type DatasetRow = MatrixRow | TransformedRow;

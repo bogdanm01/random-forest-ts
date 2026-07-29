@@ -1,7 +1,7 @@
 import Papa from "papaparse";
 import { readFile } from "node:fs/promises";
 import type { Matrix } from "./randomForest.types.ts";
-import type { DatasetRow, SourceRow, TransformedRow } from "./titanic.types.ts";
+import type { SourceRow, TransformedRow } from "./titanic.types.ts";
 
 /**
  * Reads and parses the Titanic dataset from a CSV file, performs basic
@@ -24,6 +24,7 @@ export async function parseCSV(datasetPath: string): Promise<Matrix> {
   const result = Papa.parse<SourceRow>(fileContent, {
     header: true,
     dynamicTyping: true,
+    skipEmptyLines: true,
   });
 
   if (result.errors.length > 0) {
@@ -56,7 +57,16 @@ export async function parseCSV(datasetPath: string): Promise<Matrix> {
       survived: item.Survived,
     };
 
-    return Object.values(transformedRow);
+    return [
+      transformedRow.pClass,
+      transformedRow.sex,
+      transformedRow.age,
+      transformedRow.sibSp,
+      transformedRow.parch,
+      transformedRow.fare,
+      transformedRow.embarked,
+      transformedRow.survived,
+    ];
   });
 
   return transformedRows;
@@ -79,7 +89,7 @@ export async function parseCSV(datasetPath: string): Promise<Matrix> {
 export function splitData(
   trainRatio: number,
   data: Matrix,
-): { train: DatasetRow[]; test: DatasetRow[] } {
+): { train: Matrix; test: Matrix } {
   if (trainRatio <= 0 || trainRatio >= 1) {
     throw new Error("Split factor must be between 0 and 1.");
   }
