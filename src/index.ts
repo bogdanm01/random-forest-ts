@@ -19,9 +19,38 @@ interface Forest {
   trees: Node[];
 }
 
-interface TreeOptions {
+interface RandomForestOptions {
   maxDepth?: number;
   minSamplesSplit?: number;
+  numTrees?: number;
+}
+
+/**
+ * Trains a Random Forest classifier by constructing an ensemble of decision trees.
+ *
+ * Employs bootstrap aggregating (bagging) by drawing random samples with replacement
+ * from the input dataset to train each individual decision tree.
+ *
+ * @param dataSet - Matrix of training data where each row represents a sample and the final column contains the target label.
+ * @param options - Configuration settings for building the forest, including tree depth, split criteria, and the total number of trees.
+ *
+ * @returns A `Forest` object containing the collection of trained decision tree root nodes.
+ */
+function trainForest(dataSet: Matrix, options: RandomForestOptions): Forest {
+  const trees = [];
+
+  for (let i = 0; i < options.numTrees!; i++) {
+    const sample = bootstrapSample(dataSet);
+    const tree = trainTree(sample, options);
+
+    if (tree) {
+      trees.push(tree);
+    }
+  }
+
+  return {
+    trees: trees,
+  };
 }
 
 /**
@@ -40,7 +69,7 @@ interface TreeOptions {
  */
 function trainTree(
   dataset: Matrix,
-  treeOptions: TreeOptions,
+  treeOptions: RandomForestOptions,
   currentDepth: number = 0,
 ): Node | null {
   if (calculateGiniImpurity(dataset) === 0) {
@@ -61,7 +90,7 @@ function trainTree(
     };
   }
 
-  const result = findBestSplit(dataset);
+  const result = findBestSplitWithFeatureSubSampling(dataset);
 
   if (
     !result.split ||
@@ -131,24 +160,21 @@ function getMajorityClass(dataset: Matrix): string | number {
 }
 
 /**
- * Evaluates all possible feature splits across a dataset to find the partition
- * that yields the lowest weighted Gini impurity.
+ * Finds the best split for a dataset by randomly selecting a subset of features (Feature Subsampling).
  *
- * Iterates through every feature column (excluding the target class in the last column)
- * and tests each unique feature value as a potential split candidate using `findSplit`.
- * Computes the weighted Gini impurity for each partition and returns the split criteria
- * that minimizes child node impurity (maximizing Gini reduction).
+ * Implements the Random Forest approach where a random subset of features is selected for each tree node.
+ * For each selected feature, the weighted Gini impurity is evaluated across all candidate values,
+ * returning the split that minimizes overall impurity.
  *
- * @param dataset - The matrix of samples to evaluate, where each row consists of feature
- * values followed by the target class label in the final column.
+ * @param dataset - Matrix of data where each row represents a sample and the last column contains the target label.
  *
- * @returns An object containing the details of the optimal split:
- * - `split`: The resulting `SplitResult` (`match` and `noMatch` subsets), or `null` if no valid split reduces impurity.
- * - `attributeValue`: The threshold or feature value used for the best split criteria, or `null` if no split is found.
- * - `minGini`: The lowest weighted Gini impurity score achieved by the best split. Defaults to `Number.MAX_VALUE` if no valid split exists.
- * - `columnIndex`: The index of the column/attribute corresponding to the best split criteria.
+ * @returns An object containing the details of the best split:
+ *  - `split`: An object containing the partitioned data (`match` and `noMatch`), or `null` if no valid split was found.
+ *  - `attributeValue`: The specific feature value used to split the data, or `null`.
+ *  - `minGini`: The lowest calculated weighted Gini impurity.
+ *  - `columnIndex`: The column index of the feature that yielded the best split.
  */
-function findBestSplit(dataset: Matrix) {
+function findBestSplitWithFeatureSubSampling(dataset: Matrix) {
   let minGini = Number.MAX_VALUE;
   let bestSplit: SplitResult | null = null;
   let bestAttributeValue: string | number | null = null;
@@ -163,15 +189,25 @@ function findBestSplit(dataset: Matrix) {
     };
   }
 
-  const classIndex = dataset[0].length - 1;
+  const totalFeatures = dataset[0].length - 1;
+  const numberOfAttributes = Math.floor(Math.sqrt(totalFeatures)) || 1;
 
-  for (let colIndex = 0; colIndex < classIndex; colIndex++) {
+  const allIndices = Array.from({ length: totalFeatures }, (_, i) => i);
+  const selectedAttributes = allIndices
+    .sort(() => Math.random() - 0.5)
+    .slice(0, numberOfAttributes);
+
+  for (let colIndex of selectedAttributes) {
     const featureSet = new Set<string | number>();
 
     for (let rowIndex = 0; rowIndex < dataset.length; rowIndex++) {
       const featureValue = dataset[rowIndex]?.[colIndex];
 
-      if (featureValue !== undefined && !featureSet.has(featureValue)) {
+      if (
+        featureValue !== undefined &&
+        featureValue !== null &&
+        !featureSet.has(featureValue)
+      ) {
         featureSet.add(featureValue);
         const split = findSplit(dataset, colIndex, featureValue);
 
@@ -179,7 +215,7 @@ function findBestSplit(dataset: Matrix) {
           continue;
         }
 
-        const weightedGini = calculateWeightedGini(split, dataset);
+        const weightedGini = calculateWeightedGini(split, dataset.length);
 
         if (weightedGini < minGini) {
           minGini = weightedGini;
@@ -211,10 +247,11 @@ function findBestSplit(dataset: Matrix) {
  * @returns The total weighted Gini impurity score for the split. A lower value indicates
  * a purer partition.
  */
-function calculateWeightedGini(split: SplitResult, dataset: Matrix) {
+function calculateWeightedGini(split: SplitResult, totalSampleSize: number) {
   return (
-    (split.match.length / dataset.length) * calculateGiniImpurity(split.match) +
-    (split.noMatch.length / dataset.length) *
+    (split.match.length / totalSampleSize) *
+      calculateGiniImpurity(split.match) +
+    (split.noMatch.length / totalSampleSize) *
       calculateGiniImpurity(split.noMatch)
   );
 }
@@ -315,7 +352,10 @@ function calculateGiniImpurity(data: Matrix): number {
  * @returns The predicted class label (`string` or `number`) if a leaf node is reached,
  * or `null` if traversal fails due to an invalid or incomplete tree structure.
  */
-function predict(tree: Node, input: MatrixRow): string | number | null {
+function predictSingleTree(
+  tree: Node,
+  input: MatrixRow,
+): string | number | null {
   let currentNode: Node | null = tree;
 
   while (currentNode && currentNode.type !== "leaf") {
@@ -340,8 +380,57 @@ function predict(tree: Node, input: MatrixRow): string | number | null {
 }
 
 /**
+ * Predicts the target outcome for a single input record using majority voting across all trees in the forest.
  *
- * @param dataset
+ * Traverses each decision tree within the ensemble to generate an individual prediction,
+ * then tallies the results and returns the class label that received the highest number of votes.
+ *
+ * @param forest - The trained Random Forest model containing an array of decision trees.
+ * @param input - A single row of features representing the input sample to classify.
+ *
+ * @returns The majority-voted prediction label (string or number), or `null` if the forest contains no trees.
+ */
+function predictForest(
+  forest: Forest,
+  input: MatrixRow,
+): string | number | null {
+  if (!forest.trees.length) {
+    return null;
+  }
+
+  const votes = new Map<string | number, number>();
+
+  for (const tree of forest.trees) {
+    const prediction = predictSingleTree(tree, input);
+
+    if (prediction !== null) {
+      const currentVotes = votes.get(prediction) ?? 0;
+      votes.set(prediction, currentVotes + 1);
+    }
+  }
+
+  let maxVotes = -1;
+  let winningClass: string | number | null = null;
+
+  votes.forEach((count, label) => {
+    if (count > maxVotes) {
+      maxVotes = count;
+      winningClass = label;
+    }
+  });
+
+  return winningClass;
+}
+
+/**
+ * Generates a bootstrap sample from the dataset using sampling with replacement.
+ *
+ * Creates a new dataset of equal length to the original by randomly selecting rows
+ * uniformly at random, allowing individual rows to be chosen multiple times.
+ *
+ * @param dataset - Matrix of training data to sample from.
+ *
+ * @returns A new matrix containing the bootstrapped sample of rows.
  */
 export function bootstrapSample(dataset: Matrix): Matrix {
   const samples: Matrix = [];
