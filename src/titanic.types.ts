@@ -1,11 +1,11 @@
-import type { MatrixRow } from "./randomForest.types.js";
+import type { MatrixRow } from "./randomForest.types.ts";
 
 export interface SourceRow {
   PassengerId: string;
   Survived: number;
   Pclass: number;
   name: string;
-  Sex: string;
+  Sex: "male" | "female";
   Age?: number;
   SibSp: number;
   Parch: number;

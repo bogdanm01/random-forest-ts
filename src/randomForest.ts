@@ -5,7 +5,7 @@ import type {
   Node,
   RandomForestOptions,
   SplitResult,
-} from "./randomForest.types.js";
+} from "./randomForest.types.ts";
 
 /**
  * Trains a Random Forest classifier by constructing an ensemble of decision trees.

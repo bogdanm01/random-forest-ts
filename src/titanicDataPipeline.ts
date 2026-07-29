@@ -1,26 +1,22 @@
 import Papa from "papaparse";
 import { readFile } from "node:fs/promises";
-import type { Matrix } from "./randomForest.types.js";
-import type {
-  DatasetRow,
-  SourceRow,
-  TransformedRow,
-} from "./titanic.types.js";
+import type { Matrix } from "./randomForest.types.ts";
+import type { DatasetRow, SourceRow, TransformedRow } from "./titanic.types.ts";
 
 /**
- * Reads the Titanic dataset from a CSV file, parses its contents, performs
- * basic preprocessing, and transforms each record into the matrix format
- * expected by the Random Forest implementation.
+ * Reads and parses the Titanic dataset from a CSV file, performs basic
+ * preprocessing, and transforms each record into the matrix format expected
+ * by the Random Forest implementation.
  *
  * The preprocessing step:
  * - removes unused attributes,
- * - replaces missing age values with `0`,
+ * - replaces missing age values with the average age for the corresponding sex,
  * - preserves the target class (`survived`) as the last column.
  *
  * @param datasetPath - Path to the CSV dataset file.
+ * @returns A promise that resolves to the transformed dataset matrix.
  *
- * @returns A promise that resolves once the dataset has been parsed and
- * transformed.
+ * @throws {Error} If the CSV file cannot be parsed successfully.
  */
 export async function parseCSV(datasetPath: string): Promise<Matrix> {
   const fileContent = await readFile(datasetPath, "utf8");
@@ -30,15 +26,29 @@ export async function parseCSV(datasetPath: string): Promise<Matrix> {
     dynamicTyping: true,
   });
 
-  if (result && result.errors && result.errors.length > 0) {
+  if (result.errors.length > 0) {
     throw new Error(`Failed to parse CSV: ${result.errors[0]!.message}`);
   }
+
+  const maleCount = result.data.filter(
+    (it) => it.Age != null && it.Sex === "male",
+  ).length;
+  const femaleCount = result.data.filter(
+    (it) => it.Age != null && it.Sex === "female",
+  ).length;
+
+  const maleAgeSum = result.data.reduce(getAgeSumForGender("male"), 0);
+  const femaleAgeSum = result.data.reduce(getAgeSumForGender("female"), 0);
+
+  const averageMaleAge = maleAgeSum / maleCount;
+  const averageFemaleAge = femaleAgeSum / femaleCount;
 
   const transformedRows: Matrix = result.data.map((item) => {
     const transformedRow: TransformedRow = {
       pClass: item.Pclass,
       sex: item.Sex,
-      age: item.Age ?? 0, // TODO: Replace missing values with the average age for the corresponding sex.
+      age:
+        item.Age ?? (item.Sex === "female" ? averageFemaleAge : averageMaleAge),
       sibSp: item.SibSp,
       parch: item.Parch,
       fare: item.Fare,
@@ -78,8 +88,10 @@ export function splitData(
 
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
+
     const currentRow = shuffled[i]!;
     const swapRow = shuffled[j]!;
+
     shuffled[i] = swapRow;
     shuffled[j] = currentRow;
   }
@@ -91,3 +103,13 @@ export function splitData(
     test: shuffled.slice(splitIndex),
   };
 }
+
+const getAgeSumForGender =
+  (gender: SourceRow["Sex"]) =>
+  (sum: number, current: SourceRow): number => {
+    if (current.Sex === gender && current.Age != null) {
+      return sum + current.Age;
+    }
+
+    return sum;
+  };
